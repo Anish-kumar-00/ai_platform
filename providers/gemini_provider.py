@@ -6,7 +6,7 @@ from providers.base_provider import BaseProvider
 class GeminiProvider(BaseProvider):
     id = "gemini"
     label = "Google (Gemini)"
-    models = ["gemini-2.5-flash", "gemini-2.5-pro"]
+    models = ["gemini-3.8-flash"]
     free_tier_note = "Free tier available with rate limits (key: aistudio.google.com)."
 
     def stream(self, messages, model, api_key, system=""):
