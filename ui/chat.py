@@ -3,13 +3,24 @@ from database import db
 from providers import PROVIDERS
 from providers.base_provider import ProviderError
 from config.secrets_manager import get_api_key
+from tools import project_manager
+from tools.file_manager import FileManager
 
-SYSTEM = "You are a helpful senior software engineer. Use Markdown and fenced code blocks."
+BASE_SYSTEM = "You are a helpful senior software engineer. Use Markdown and fenced code blocks."
 
 
-def render_chat():
+def _system_prompt(project):
+    if not project:
+        return BASE_SYSTEM
+    tree = FileManager(project_manager.project_dir(project)).tree()[:3000]
+    return (f"{BASE_SYSTEM}\nYou are helping with the project '{project['name']}'.\n"
+            f"Current project files:\n{tree or '(empty)'}")
+
+
+def render_chat(project=None):
+    pid_proj = project["id"] if project else None
     if not st.session_state.get("conv_id"):
-        st.session_state.conv_id = db.create_conversation()
+        st.session_state.conv_id = db.create_conversation(project_id=pid_proj)
     conv_id = st.session_state.conv_id
 
     for m in db.get_messages(conv_id):
@@ -42,10 +53,11 @@ def render_chat():
     with st.chat_message("assistant"):
         st.caption(f"Responding: {PROVIDERS[pid].label} · {model}")
         try:
-            reply = st.write_stream(PROVIDERS[pid].stream(msgs, model, key, SYSTEM))
+            reply = st.write_stream(
+                PROVIDERS[pid].stream(msgs, model, key, _system_prompt(project)))
             db.add_message(conv_id, "assistant", reply, pid, model)
             ok = True
         except ProviderError as e:
             st.error(str(e))
     if ok:
-        st.rerun()  # refresh sidebar titles
+        st.rerun()
